@@ -1,9 +1,22 @@
+using r720SNMPFanControl.BackgroundService;
+using r720SNMPFanControl.Configs;
+
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<TimedReaderService>();
+
+
+OIDs OIDs = new OIDs();
+OIDs.Fans = builder.Configuration.GetSection("FanOIDs").Get<string[]>();
+OIDs.Temperatures = builder.Configuration.GetSection("TemperatureOIDs").Get<string[]>();
+
+builder.Services.AddSingleton<OIDs>(OIDs);
 
 var app = builder.Build();
 
