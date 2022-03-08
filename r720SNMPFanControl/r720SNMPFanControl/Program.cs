@@ -11,12 +11,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHostedService<TimedReaderService>();
 
-
 OIDs OIDs = new OIDs();
 OIDs.Fans = builder.Configuration.GetSection("FanOIDs").Get<string[]>();
 OIDs.Temperatures = builder.Configuration.GetSection("TemperatureOIDs").Get<string[]>();
+OIDs.CPUTemperatures = builder.Configuration.GetSection("CPUTemperatureOIDs").Get<string[]>();
 
 builder.Services.AddSingleton<OIDs>(OIDs);
+
 
 var app = builder.Build();
 

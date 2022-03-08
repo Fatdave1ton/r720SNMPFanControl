@@ -47,54 +47,55 @@ namespace r720SNMPFanControl.BackgroundService
             // Construct target
             UdpTarget target = new UdpTarget((IPAddress)agent, 161, 2000, 1);
             // Pdu class used for all requests
-            Pdu pdu = new Pdu(PduType.Get);
-            foreach(string fan in _Oids.Fans)
-            {
-                pdu.VbList.Add(fan);
-            }
+            Pdu Temps = new Pdu(PduType.Get);
+            Pdu CPUTemps = new Pdu(PduType.Get);
+            Pdu FanRpms = new Pdu(PduType.Get);
 
+            foreach (string fan in _Oids.Fans)
+            {
+                FanRpms.VbList.Add(fan);
+            }
             foreach (string temperature in _Oids.Temperatures)
             {
-                pdu.VbList.Add(temperature);
+                Temps.VbList.Add(temperature);
+            }
+            foreach (string temperature in _Oids.CPUTemperatures)
+            {
+                CPUTemps.VbList.Add(temperature);
             }
 
-            // Make SNMP request
-            SnmpV1Packet result = (SnmpV1Packet)target.Request(pdu, param);
-            // If result is null then agent didn't reply or we couldn't parse the reply.
-            if (result != null)
-            {
-                // ErrorStatus other then 0 is an error returned by
-                // the Agent - see SnmpConstants for error definitions
-                if (result.Pdu.ErrorStatus != 0)
-                {
-                    // agent reported an error with the request
-                    _logger.LogError("Error in SNMP reply. Error {0} index {1}",
-                        result.Pdu.ErrorStatus,
-                        result.Pdu.ErrorIndex);
-                }
-                else
-                {
-                    // Reply variables are returned in the same order as they were added
-                    //  to the VbList
+            Readings readings = new(_logger);
 
-                    for (int i = 0; i < result.Pdu.VbList.Count();)
-                    {
-                        _logger.LogInformation("sysDescr({0}) ({1}): {2}",
-                        result.Pdu.VbList[i].Oid.ToString(),
-                        SnmpConstants.GetTypeName(result.Pdu.VbList[i].Value.Type),
-                        result.Pdu.VbList[i].Value.ToString());
-                        i++;
-                    }
-                }
-            }
-            else
+            readings.AddCpuReadings((SnmpV1Packet)target.Request(CPUTemps, param));
+            readings.AddTempReadings((SnmpV1Packet)target.Request(Temps, param));
+            readings.AddFanReadings((SnmpV1Packet)target.Request(FanRpms, param));
+
+            int i = 1;
+            foreach (int rpm in readings.FanRpms)
             {
-                _logger.LogError("No response received from SNMP agent.");
+                _logger.LogError(" fan {0} rpm {1}",
+                                        i,
+                                        rpm);
+                i++;
             }
+            i = 1;
+            foreach (int temp in readings.Temps)
+            {
+                _logger.LogError(" temp {0} rpm {1}",
+                                        i,
+                                        temp);
+                i++;
+            }
+            i = 1;
+            foreach (int cputemp in readings.CPUTemps)
+            {
+                _logger.LogError(" temp {0} rpm {1}",
+                                        i,
+                                        cputemp);
+                i++;
+            }
+
             target.Close();
-
-
-
         }
 
         public Task StopAsync(CancellationToken stoppingToken)
