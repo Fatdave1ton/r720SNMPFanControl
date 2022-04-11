@@ -16,7 +16,15 @@ OIDs.Fans = builder.Configuration.GetSection("FanOIDs").Get<string[]>();
 OIDs.Temperatures = builder.Configuration.GetSection("TemperatureOIDs").Get<string[]>();
 OIDs.CPUTemperatures = builder.Configuration.GetSection("CPUTemperatureOIDs").Get<string[]>();
 
+Passwords Passwords = new();
+Passwords.Hostname = builder.Configuration.GetSection("Hostname").Get<string>();  
+Passwords.User = builder.Configuration.GetSection("User").Get<string>();
+Passwords.Password = builder.Configuration.GetSection("Password").Get<string>();
+
+
+
 builder.Services.AddSingleton<OIDs>(OIDs);
+builder.Services.AddSingleton<Passwords>(Passwords);
 
 
 var app = builder.Build();

@@ -17,8 +17,8 @@ namespace r720SNMPFanControl.BackgroundService
         public List<int> FanRpms { get; set; }
         public int AvgFanSpeed => FanRpms.Sum(a => a) / FanRpms.Count();
 
-        public List<int> Temps { get; set; }
-        public List<int> CPUTemps { get; set; }
+        public List<decimal> Temps { get; set; }
+        public List<decimal> CPUTemps { get; set; }
 
         public void AddCpuReadings(SnmpV1Packet SnmpV1Packet)
         {
@@ -37,7 +37,7 @@ namespace r720SNMPFanControl.BackgroundService
                     {
                         if (int.TryParse(SnmpV1Packet.Pdu.VbList[i].Value.ToString(), out int reading))
                         {
-                            CPUTemps.Add(reading);
+                            CPUTemps.Add((decimal)reading/10);
                         }
                         i++;
                     }
@@ -62,7 +62,7 @@ namespace r720SNMPFanControl.BackgroundService
                     {
                         if (int.TryParse(SnmpV1Packet.Pdu.VbList[i].Value.ToString(), out int reading))
                         {
-                            Temps.Add(reading);
+                            Temps.Add((decimal)reading/10);
                         }
                         i++;
                     }
