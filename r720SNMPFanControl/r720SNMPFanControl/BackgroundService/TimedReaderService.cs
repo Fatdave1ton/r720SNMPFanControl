@@ -1,4 +1,5 @@
 ﻿using r720SNMPFanControl.Configs;
+using r720SNMPFanControl.Enums;
 using SnmpSharpNet;
 using System.Diagnostics;
 using System.Net;
@@ -12,10 +13,11 @@ namespace r720SNMPFanControl.BackgroundService
         private Timer _timer = null!;
         private OIDs _Oids;
         private Passwords _Passwords;
-
+        
+        private Mode currentMode = Mode.Manual;
+        private int manualPercent = 0;
         private string _baseArguments;
         private readonly string _rawArgument;
-        private readonly string _sensorList;
 
         public TimedReaderService(ILogger<TimedReaderService> logger, OIDs Oids, Passwords Passwords)
         {
@@ -24,7 +26,6 @@ namespace r720SNMPFanControl.BackgroundService
             _Passwords = Passwords;
             _baseArguments = $@"C:\ipmitool_1.8.18-dellemc_p001\ipmitool -I lanplus -H {_Passwords.Hostname} -U {_Passwords.User} -P {_Passwords.Password}";
             _rawArgument = $"{_baseArguments} raw";
-            _sensorList = $"{_baseArguments} sensor list";
         }
 
         public Task StartAsync(CancellationToken stoppingToken)
@@ -38,11 +39,7 @@ namespace r720SNMPFanControl.BackgroundService
         }
 
         private void DoWork(object? state)
-        {
-            var count = Interlocked.Increment(ref executionCount);
-
-            _logger.LogInformation(
-                "Timed Hosted Service is working. Count: {Count}", count);
+        {           
 
             OctetString community = new OctetString("DaveHome");
             // Define agent parameters class
@@ -99,22 +96,38 @@ namespace r720SNMPFanControl.BackgroundService
             i = 1;
             foreach (int cputemp in readings.CPUTemps)
             {
-                _logger.LogInformation(" CPU temp {0} rpm {1}",
+                _logger.LogInformation(" CPU {0} temp {1}",
                                         i,
                                         cputemp);
                 i++;
             }
 
-            //check actual temps again temp curve
+            //check actual temps against temp curve
 
-            //choose command for right fan speed/reset to auto
-
-            //send command
-                      
-
-        
-
-
+            if (readings.CPUTemps.Any(cpu => cpu >= 55))
+            {
+                _logger.LogInformation("Switched to Auto(high temp override)");
+                SwitchToAutomatic();
+            }
+            else if (readings.CPUTemps.Any(cpu => cpu >= 40) && currentMode != Mode.Automatic)
+            {                
+                _logger.LogInformation("Switched to Auto");                
+                SwitchToAutomatic();
+                currentMode = Mode.Automatic;
+            }
+            else
+            {                
+                int percentNeeded = (10 - (40 - (int)readings.CPUTemps.Max()));
+                if (percentNeeded < 3) { percentNeeded = 3; }
+                
+                if(percentNeeded != manualPercent)
+                {
+                    _logger.LogInformation("Switched to Manual: {0}%", percentNeeded);
+                    SwitchToManual(percentNeeded);
+                    manualPercent = percentNeeded;
+                    currentMode = Mode.Manual;
+                }                                    
+            }
 
             target.Close();
         }
@@ -133,12 +146,17 @@ namespace r720SNMPFanControl.BackgroundService
 
             return output;
         }
-        public void SwitchToAutomatic() => Command($"{_rawArgument} 0x30 0x30 0x01 0x01");
+        public void SwitchToAutomatic()
+        {
+            Command($"{_rawArgument} 0x30 0x30 0x01 0x01");
+            currentMode = Mode.Automatic;
+        }
 
         public void SwitchToManual(int speedPercent)
         {
             Command($"{_rawArgument} 0x30 0x30 0x01 0x00");
             Command($"{_rawArgument} 0x30 0x30 0x02 0xff 0x{speedPercent:x}");
+            currentMode = Mode.Manual;
         }
 
         public Task StopAsync(CancellationToken stoppingToken)
@@ -147,11 +165,15 @@ namespace r720SNMPFanControl.BackgroundService
 
             _timer?.Change(Timeout.Infinite, 0);
 
+            SwitchToAutomatic();
+
             return Task.CompletedTask;
         }
 
         public void Dispose()
         {
+            SwitchToAutomatic();
+
             _timer?.Dispose();
         }
     }
