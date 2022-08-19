@@ -3,6 +3,7 @@ using r720SNMPFanControl.Enums;
 using SnmpSharpNet;
 using System.Diagnostics;
 using System.Net;
+using System.Runtime.Intrinsics.Arm;
 
 namespace r720SNMPFanControl.BackgroundService
 {
@@ -13,7 +14,7 @@ namespace r720SNMPFanControl.BackgroundService
         private Timer _timer = null!;
         private OIDs _Oids;
         private Passwords _Passwords;
-        
+
         private Mode currentMode = Mode.Manual;
         private int manualPercent = 0;
         private string _baseArguments;
@@ -30,7 +31,7 @@ namespace r720SNMPFanControl.BackgroundService
 
         public Task StartAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Timed Hosted Service running.");
+            _logger.LogInformation($"{DateTime.Now.ToString("f")} - Timed Hosted Service running.");
 
             _timer = new Timer(DoWork, null, TimeSpan.Zero,
                 TimeSpan.FromSeconds(2));
@@ -39,7 +40,7 @@ namespace r720SNMPFanControl.BackgroundService
         }
 
         private void DoWork(object? state)
-        {           
+        {
 
             OctetString community = new OctetString("DaveHome");
             // Define agent parameters class
@@ -78,55 +79,45 @@ namespace r720SNMPFanControl.BackgroundService
             readings.AddFanReadings((SnmpV1Packet)target.Request(FanRpms, param));
 
             int i = 1;
+            string message = "";
             foreach (int rpm in readings.FanRpms)
             {
-                _logger.LogInformation(" fan {0} rpm {1}",
-                                        i,
-                                        rpm);
+                message += $"fan {i} rpm {rpm}{Environment.NewLine}";
                 i++;
             }
             i = 1;
             foreach (int temp in readings.Temps)
             {
-                _logger.LogInformation(" temp {0} rpm {1}",
-                                        i,
-                                        temp);
+                message += $"temp {i} rpm {temp}{Environment.NewLine}";
                 i++;
             }
             i = 1;
             foreach (int cputemp in readings.CPUTemps)
             {
-                _logger.LogInformation(" CPU {0} temp {1}",
-                                        i,
-                                        cputemp);
+                message += $"CPU {i} temp {cputemp}{Environment.NewLine}";
                 i++;
             }
 
+            //_logger.LogInformation(message);
             //check actual temps against temp curve
 
-            if (readings.CPUTemps.Any(cpu => cpu >= 55))
+            if (readings.CPUTemps.Any(cpu => cpu >= 45))
             {
-                _logger.LogInformation("Switched to Auto(high temp override)");
+                _logger.LogInformation($"{DateTime.Now.ToString("f")} - Switched to Auto(high temp override)");
                 SwitchToAutomatic();
-            }
-            else if (readings.CPUTemps.Any(cpu => cpu >= 40) && currentMode != Mode.Automatic)
-            {                
-                _logger.LogInformation("Switched to Auto");                
-                SwitchToAutomatic();
-                currentMode = Mode.Automatic;
             }
             else
-            {                
+            {
                 int percentNeeded = (5 - (40 - (int)readings.CPUTemps.Max()));
                 if (percentNeeded < 5) { percentNeeded = 5; }
-                
-                if(percentNeeded != manualPercent)
+
+                if (percentNeeded != manualPercent)
                 {
-                    _logger.LogInformation("Switched to Manual: {0}%", percentNeeded);
+                    _logger.LogInformation($"{DateTime.Now.ToString("f")} - Switched to Manual: {percentNeeded}%");
                     SwitchToManual(percentNeeded);
                     manualPercent = percentNeeded;
                     currentMode = Mode.Manual;
-                }                                    
+                }
             }
 
             target.Close();
@@ -161,7 +152,7 @@ namespace r720SNMPFanControl.BackgroundService
 
         public Task StopAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Timed Hosted Service is stopping.");
+            _logger.LogInformation($"{DateTime.Now.ToString("f")} - Timed Hosted Service is stopping.");
 
             _timer?.Change(Timeout.Infinite, 0);
 
