@@ -108,8 +108,8 @@ namespace r720SNMPFanControl.BackgroundService
             }
             else
             {
-                int percentNeeded = (8 - (40 - (int)readings.CPUTemps.Max()));
-                if (percentNeeded < 8) { percentNeeded = 8; }
+                int percentNeeded = (2 - (43 - (int)readings.CPUTemps.Max()));
+                if (percentNeeded < 2) { percentNeeded = 2; }
 
                 if (percentNeeded != manualPercent)
                 {
