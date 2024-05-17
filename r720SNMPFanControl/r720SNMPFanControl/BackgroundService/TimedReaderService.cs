@@ -101,14 +101,14 @@ namespace r720SNMPFanControl.BackgroundService
             //_logger.LogInformation(message);
             //check actual temps against temp curve
 
-            if (readings.CPUTemps.Any(cpu => cpu >= 45))
+            if (readings.CPUTemps.Any(cpu => cpu >= 55))
             {
                 _logger.LogInformation($"{DateTime.Now.ToString("f")} - Switched to Auto(high temp override)");
                 SwitchToAutomatic();
             }
             else
             {
-                int percentNeeded = (1 - (40 - (int)readings.CPUTemps.Max()));
+                int percentNeeded = (1 - (45 - (int)readings.CPUTemps.Max()));
                 if (percentNeeded < 1) { percentNeeded = 1; }
 
                 if (percentNeeded != manualPercent)
